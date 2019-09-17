@@ -31,7 +31,7 @@ module.exports = function (passport) {
 
     // used to deserialize the user
     passport.deserializeUser(function (id, done) {
-        db.query("SELECT * FROM users WHERE userID = ? ", [id], function (err, rows) {
+        db.query("SELECT * FROM users WHERE id = ? ", [id], function (err, rows) {
             done(err, rows[0]);
         });
     });
@@ -62,12 +62,14 @@ module.exports = function (passport) {
                         // if there is no user with that username
                         // Create a json user model
                         let newUserMysql = {
+                            first_name: req.body.first_name,
+                            last_name: req.body.last_name,
                             email: email,
                             password: bcrypt.hashSync(password, null, null)
                         };
 
-                        let insertQuery = 'INSERT INTO users (email, password) VALUES (?,?)';
-                        db.query(insertQuery, [newUserMysql.email, newUserMysql.password],
+                        let insertQuery = 'INSERT INTO users (email, password, first_name, last_name) VALUES (?,?,?,?)';
+                        db.query(insertQuery, [newUserMysql.email, newUserMysql.password, newUserMysql.first_name, newUserMysql.last_name],
                             function (err, result) {
                                 if (err) {
                                     throw (err);
