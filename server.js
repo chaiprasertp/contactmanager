@@ -5,6 +5,22 @@ const bodyParser = require('body-parser');
 const app = express();
 const PORT = process.env.PORT || 3000;
 let bcrypt = require('bcrypt-nodejs');
+const multer = require('multer');
+const crypto = require('crypto');
+const mime = require('mime');
+var storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+      cb(null, './uploads/')
+    },
+    filename: function (req, file, cb) {
+      crypto.pseudoRandomBytes(16, function (err, raw) {
+        cb(null, raw.toString('hex') + Date.now() + '.' + mime.getExtension(file.mimetype));
+      });
+    }
+  });
+  const upload = multer({ storage: storage });
+const fs = require('fs');
+app.use('/uploads', express.static('uploads'));
 
 const passport = require('passport');
 // pass passport for configuration
@@ -73,12 +89,14 @@ app.get('/logout', (req, res) => {
 });
 
 // Route to create contact
-app.post('/contact', isAuth, ({user: {id}, body: {first_name, middle_name, last_name, phone_number, address, email, note}}, res) => {
+app.post('/contact', isAuth, upload.single('avatar'), ({user: {id}, body: {first_name, middle_name, last_name, phone_number, address, email, note}, file}, res) => {
+    console.log(Object.keys(file), file.destination, file.path, file.filename);
+    console.log(fs.readFileSync(file.path));
     let favorite = false;
     let group_id = 0;
-    let sql = `INSERT INTO contact(first_name, middle_name, last_name, phone_number, address, email, favorite, note, group_id, user_id)
-    VALUES(?,?,?,?,?,?,?,?,?,?)`;
-    db.query(sql, [first_name, middle_name, last_name, phone_number, address, email, favorite, note, group_id, id], (err, result) => {
+    let sql = `INSERT INTO contact(first_name, middle_name, last_name, phone_number, address, email, favorite, note, avatar, avatar_url, group_id, user_id)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`;
+    db.query(sql, [first_name, middle_name, last_name, phone_number, address, email, favorite, note, fs.readFileSync(file.path), file.path, group_id, id], (err, result) => {
         if (err) {
             console.log(err);
             res.status(500).send('Internal Server Error.');
@@ -96,7 +114,7 @@ app.get('/contacts', isAuth, ({user: {id: user_id}} , res) => {
         if (err) {
             res.status(500).send('Internal Server Error.');
         } else {
-            res.status(200).send(result);
+            res.status(200).send(result.map((r) => ({...r, avatar: undefined})));
         }
     });
 }); 
