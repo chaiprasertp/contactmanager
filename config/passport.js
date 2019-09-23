@@ -26,7 +26,7 @@ module.exports = function (passport) {
     // used to serialize the user for the session
     passport.serializeUser(function (user, done) {
         console.log(user);
-        done(null, user.userId);
+        done(null, user.id);
     });
 
     // used to deserialize the user
@@ -72,12 +72,13 @@ module.exports = function (passport) {
                         db.query(insertQuery, [newUserMysql.email, newUserMysql.password, newUserMysql.first_name, newUserMysql.last_name],
                             function (err, result) {
                                 if (err) {
-                                    throw (err);
+                                    done (err);
                                 }
                                 // Get the new User id from the db to return for serializing
                                 newUserMysql.userId = result.insertId;
                                 console.log("User created successfully.");
                                 // Returns callback with user info to serialize user to begin session
+                                delete newUserMysql.password;
                                 return done(null, newUserMysql);
                             });
                     }
@@ -98,7 +99,6 @@ module.exports = function (passport) {
             },
             function (req, email, password, done) { // callback with email and password from our form
                 // db.connect();
-                console.log("email", email);
                 db.query("SELECT * FROM users WHERE email = ?", [email], function (err, rows) {
                     if (err) {
                         return done(err);
@@ -107,15 +107,15 @@ module.exports = function (passport) {
                         console.log('Username not registered');
                         return done(null, false);
                     }
-                    console.log("HERE");
 
                     // if the user is found but the password is wrong
                     if (!bcrypt.compareSync(password, rows[0].password)) {
-                        console.log('Incorrect Password');
+                        console.log(email,'tried to log in with Incorrect Password');
                         return done(null, false);
 
                     }
                     // login successful
+                    delete rows[0].password;
                     return done(null, rows[0]);
                 });
                 // db.end();

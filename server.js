@@ -4,6 +4,7 @@ const cookieParser = require('cookie-parser');
 const bodyParser = require('body-parser');
 const app = express();
 const PORT = process.env.PORT || 3000;
+let bcrypt = require('bcrypt-nodejs');
 
 const passport = require('passport');
 // pass passport for configuration
@@ -39,35 +40,48 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session()); // persistent login sessions
 
-app.post('/login', passport.authenticate('local-login', {
-    failureRedirect: '/login'
-}));
+app.post('/login',  (req, res) => {
+    passport.authenticate('local-login', {}, (err, user) => {
+        if (err) {
+            res.status(500).send('Internal Server Error');
+            return;
+        }
+        if (!user) {
+            res.status(401).send('Login Failed');
+            return;
+        }
+        req.login(user, () => {
+            res.status(200).send(user);
+        });
+    })(req,res);
+});
 
-app.post('/signup', passport.authenticate('local-signup', {
-    failureRedirect: '/signup'
-}));
+app.post('/signup', (req, res) => {
+    passport.authenticate('local-signup', {}, (err, user) => {
+        if (err) {
+            res.status(500).send('Internal Server Error');
+        }
+        req.login(user, () => {
+            res.status(201).send(user);
+        });
+    })(req,res);
+});
 
 app.get('/logout', (req, res) => {
     req.logout();
     res.redirect('/login');
 });
 
-/**
- * TODO: 
- * C reate
- * R ead
- * U pdate
- * D elete
- */
-
-
 // Route to create contact
-app.post('/contacts', ({user: {userID: user_id}, body: {first_name, middle_name, last_name, phone_number, address, email, favorite, group_id}}, res) => {
-    let sql = `INSERT INTO contact(first_name, middle_name, last_name, phone_number, address, email, favorite, group_id, user_id)
-    VALUES(?,?,?,?,?,?,?,?,?)`;
-    db.query(sql, [first_name, middle_name, last_name, phone_number, address, email, favorite, group_id, user_id], (err, result) => {
+app.post('/contact', isAuth, ({user: {id}, body: {first_name, middle_name, last_name, phone_number, address, email, note}}, res) => {
+    let favorite = false;
+    let group_id = 0;
+    let sql = `INSERT INTO contact(first_name, middle_name, last_name, phone_number, address, email, favorite, note, group_id, user_id)
+    VALUES(?,?,?,?,?,?,?,?,?,?)`;
+    db.query(sql, [first_name, middle_name, last_name, phone_number, address, email, favorite, note, group_id, id], (err, result) => {
         if (err) {
-          res.status(500).send('Internal Server Error.');
+            console.log(err);
+            res.status(500).send('Internal Server Error.');
         } else {
             console.log("Contact successfully created");
             res.sendStatus(201);
@@ -76,24 +90,84 @@ app.post('/contacts', ({user: {userID: user_id}, body: {first_name, middle_name,
 });
 
 // Route to get current user's contacts
-app.get('/contacts', ({user: {userID: user_id}} , res) => {
+app.get('/contacts', isAuth, ({user: {id: user_id}} , res) => {
     const sql = 'SELECT * FROM contact WHERE user_id = ?;';
     db.query(sql, [user_id], (err, result) => {
         if (err) {
-            res.status(500).send('Internal Server Error.')
+            res.status(500).send('Internal Server Error.');
         } else {
             res.status(200).send(result);
         }
     });
 }); 
 
-// until the auth middleware is done
-const temp = (req, res, next) => {
-    req.user = {userID: 3};
-    next();
-};
+// Route to edit user's contacts
+app.patch('/contact/:id', isAuth, ({user: {id: user_id}, body: {first_name, middle_name, last_name, phone_number, address, email, favorite, note, group_id}, params: {id}}, res) => {
+    const arr = [];
+    const arr2 = [];
+    if (first_name) {
+        arr.push('first_name = ?');
+        arr2.push(first_name);
+    }
+    if (middle_name) {
+        arr.push('middle_name = ?');
+        arr2.push(middle_name);
+    }
+    if (last_name) {
+        arr.push('last_name = ?');
+        arr2.push(last_name);
+    }
+    if (phone_number) {
+        arr.push('phone_number = ?');
+        arr2.push(phone_number);
+    }
+    if (address) {
+        arr.push('address = ?');
+        arr2.push(address);
+    }
+    if (email) {
+        arr.push('email = ?');
+        arr2.push(email);
+    }
+    if (favorite) {
+        arr.push('favorite = ?');
+        arr2.push(favorite);
+    }
+    if (note) {
+        arr.push('note = ?');
+        arr2.push(note);
+    }
+    if (group_id) {
+        arr.push('group_id = ?');
+        arr2.push(group_id);
+    }
+    const s = arr.join(', ');
+    const sql = ('UPDATE contact set ' + s + ' WHERE user_id = ? AND id = ?;');
+    db.query(sql, [...arr2, user_id, id], (err,result) => {
+        if(err) {
+            res.status(500).send('Internal Server Error.');
+        } else {
+            res.sendStatus(200);
+        }
+    })
+})
 
-app.patch('/contact/:id', temp, ({user: {userID: user_id}, body: {first_name, middle_name, last_name, phone_number, address, email, favorite, group_id}, params: {id}}, res) => {
+// Route to delete user's contact
+app.delete('/contact/:id', isAuth, (req , res) => {
+    let id = req.params.id;
+    let user_id = req.user.id;
+    const sql = 'DELETE FROM contact WHERE user_id = ? AND id = ?;';
+    db.query(sql, [user_id, id], (err, result) => {
+        if (err) {
+            res.status(500).send('Internal Server Error.')
+        } else {
+            res.sendStatus(200);
+        }
+    });
+});
+
+// Route to edit current user
+app.patch('/me', isAuth, ({user: {id}, body: {first_name, last_name, email, password}}, res) => {
     const arr = [];
     const arr2 = [];
     if (first_name) {
@@ -104,37 +178,27 @@ app.patch('/contact/:id', temp, ({user: {userID: user_id}, body: {first_name, mi
         arr.push('last_name = ?');
         arr2.push(last_name);
     }
-    if (address) {
-        arr.push('address = ?');
-        arr2.push(address);
-    }
     if (email) {
         arr.push('email = ?');
         arr2.push(email);
     }
-    const s = arr.join(' and ')
-    const sql = ('UPDATE contact set ' + s + ' WHERE user_id = ? AND id =?;');
-    db.query(sql, [...arr2, user_id, id], (err,result) => {
+    if (password) {
+        arr.push('password = ?');
+        arr2.push(bcrypt.hashSync(password));
+    }
+    const s = arr.join(', ');
+    const sql = ('UPDATE users set ' + s + ' WHERE id = ?;');
+    console.log(sql, [...arr2, id]);
+    const q = db.query(sql, [...arr2, id], (err,result) => {
         if(err) {
-            res.status(500).send('Internal Server Error.')
+            console.log(err);
+            res.status(500).send('Internal Server Error.');
         } else {
             res.sendStatus(200);
         }
     })
+    console.log(q.sql);
 })
-
-// Route to delete user's contact
-app.delete('/contact/:id', temp, ({user: {userID: user_id}, params: {id}} , res) => {
-    const sql = 'DELETE FROM contact WHERE user_id = ? AND id = ?;';
-    console.log(id,sql);
-    db.query(sql, [user_id, id], (err, result) => {
-        if (err) {
-            res.status(500).send('Internal Server Error.')
-        } else {
-            res.sendStatus(200);
-        }
-    });
-});
 
 // Route check auth middleware
 function isAuth(req, res, next) {
