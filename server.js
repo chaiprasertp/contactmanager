@@ -20,6 +20,7 @@ var storage = multer.diskStorage({
   });
   const upload = multer({ storage: storage });
 const fs = require('fs');
+const path = require('path');
 app.use('/uploads', express.static('uploads'));
 
 const passport = require('passport');
@@ -40,6 +41,24 @@ db.connect(err => {
     }
 });
 db.query('USE ' + dbconfig.database);
+
+function downloadAvatars() {
+    if (fs.readdirSync( __dirname + '/uploads').length > 1) {
+        return;
+    }
+    db.query('SELECT avatar, avatar_url FROM contact', (err, results) => {
+        if (err) {
+            console.log(err);
+            return;
+        }
+        console.log(results);
+        results.forEach((result) => {
+            console.log(path.join(__dirname, result.avatar_url));
+            fs.writeFileSync(path.join(__dirname, result.avatar_url), result.avatar);
+        })
+    })
+}
+downloadAvatars();
 
 app.use(cookieParser());
 app.use(bodyParser.urlencoded({
@@ -90,8 +109,9 @@ app.get('/logout', (req, res) => {
 
 // Route to create contact
 app.post('/contact', isAuth, upload.single('avatar'), ({user: {id}, body: {first_name, middle_name, last_name, phone_number, address, email, note}, file}, res) => {
-    console.log(Object.keys(file), file.destination, file.path, file.filename);
-    console.log(fs.readFileSync(file.path));
+    if (file == undefined) {
+        file = {path: "uploads/Brian.jpeg"};
+    }
     let favorite = false;
     let group_id = 0;
     let sql = `INSERT INTO contact(first_name, middle_name, last_name, phone_number, address, email, favorite, note, avatar, avatar_url, group_id, user_id)
@@ -120,7 +140,7 @@ app.get('/contacts', isAuth, ({user: {id: user_id}} , res) => {
 }); 
 
 // Route to edit user's contacts
-app.patch('/contact/:id', isAuth, ({user: {id: user_id}, body: {first_name, middle_name, last_name, phone_number, address, email, favorite, note, group_id}, params: {id}}, res) => {
+app.patch('/contact/:id', isAuth, upload.single('avatar'), ({user: {id: user_id}, body: {first_name, middle_name, last_name, phone_number, address, email, favorite, note, group_id} , file, params: {id}}, res) => {
     const arr = [];
     const arr2 = [];
     if (first_name) {
@@ -158,6 +178,12 @@ app.patch('/contact/:id', isAuth, ({user: {id: user_id}, body: {first_name, midd
     if (group_id) {
         arr.push('group_id = ?');
         arr2.push(group_id);
+    }
+    if (file) {
+        arr.push('avatar = ?');
+        arr2.push(fs.readFileSync(file.path));
+        arr.push('avatar_url = ?')
+        arr2.push(file.path);
     }
     const s = arr.join(', ');
     const sql = ('UPDATE contact set ' + s + ' WHERE user_id = ? AND id = ?;');
