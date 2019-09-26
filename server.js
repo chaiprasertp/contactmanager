@@ -8,6 +8,9 @@ let bcrypt = require('bcrypt-nodejs');
 const multer = require('multer');
 const crypto = require('crypto');
 const mime = require('mime');
+const cors = require('cors');
+
+// Uploading and generating unique names and file extension for profile pic
 var storage = multer.diskStorage({
     destination: function (req, file, cb) {
       cb(null, './uploads/')
@@ -17,11 +20,14 @@ var storage = multer.diskStorage({
         cb(null, raw.toString('hex') + Date.now() + '.' + mime.getExtension(file.mimetype));
       });
     }
-  });
-  const upload = multer({ storage: storage });
+});
+const upload = multer({ storage: storage });
 const fs = require('fs');
 const path = require('path');
 app.use('/uploads', express.static('uploads'));
+
+// Set allows port for the server to request from & allow sending credentials
+app.use(cors({ origin: ['http://localhost:4200/'], credentials: true }));
 
 const passport = require('passport');
 // pass passport for configuration
@@ -51,9 +57,7 @@ function downloadAvatars() {
             console.log(err);
             return;
         }
-        console.log(results);
         results.forEach((result) => {
-            console.log(path.join(__dirname, result.avatar_url));
             fs.writeFileSync(path.join(__dirname, result.avatar_url), result.avatar);
         })
     })
@@ -104,7 +108,7 @@ app.post('/signup', (req, res) => {
 
 app.get('/logout', (req, res) => {
     req.logout();
-    res.redirect('/login');
+    res.sendStatus(200);
 });
 
 // Route to create contact
@@ -137,7 +141,20 @@ app.get('/contacts', isAuth, ({user: {id: user_id}} , res) => {
             res.status(200).send(result.map((r) => ({...r, avatar: undefined})));
         }
     });
-}); 
+});
+
+// Route to search for user's contacts
+app.get('/search/:id', isAuth, ({user: {id: user_id}, params: {id}},res) => {
+    const sql = `SELECT * FROM contact WHERE user_id = ? AND (first_name LIKE '%`+id+`%' OR last_name LIKE '%`+id+`%');`;
+    db.query(sql, [user_id], (err, result) => {
+        if (err) {
+            console.log("ERROR:",err);
+            res.status(500).send('Internal Server Error.');
+        } else {
+            res.status(200).send(result.map((r) => ({...r, avatar: undefined})));
+        }
+    });
+});
 
 // Route to edit user's contacts
 app.patch('/contact/:id', isAuth, upload.single('avatar'), ({user: {id: user_id}, body: {first_name, middle_name, last_name, phone_number, address, email, favorite, note, group_id} , file, params: {id}}, res) => {
@@ -167,7 +184,7 @@ app.patch('/contact/:id', isAuth, upload.single('avatar'), ({user: {id: user_id}
         arr.push('email = ?');
         arr2.push(email);
     }
-    if (favorite) {
+    if (favorite != undefined) {
         arr.push('favorite = ?');
         arr2.push(favorite);
     }

@@ -25,7 +25,6 @@ module.exports = function (passport) {
 
     // used to serialize the user for the session
     passport.serializeUser(function (user, done) {
-        console.log(user);
         done(null, user.id);
     });
 
@@ -79,7 +78,9 @@ module.exports = function (passport) {
                                 console.log("User created successfully.");
                                 // Returns callback with user info to serialize user to begin session
                                 delete newUserMysql.password;
-                                return done(null, newUserMysql);
+                                req.login(newUserMysql, (err) => {
+                                    done(err, newUserMysql);
+                                });
                             });
                     }
                 });
@@ -116,7 +117,9 @@ module.exports = function (passport) {
                     }
                     // login successful
                     delete rows[0].password;
-                    return done(null, rows[0]);
+                    req.login(rows[0], (err) => {
+                        done(err, rows[0]);
+                    })
                 });
                 // db.end();
             })
