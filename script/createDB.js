@@ -17,7 +17,8 @@ let sql = `CREATE TABLE IF NOT EXISTS users (
     first_name VARCHAR(50),
     last_name VARCHAR(50),
 	email VARCHAR(100) NOT NULL UNIQUE,
-	password VARCHAR(255)
+    password VARCHAR(255),
+    token VARCHAR(255)
 );`;
 
 let sql2 = `CREATE TABLE IF NOT EXISTS contact (

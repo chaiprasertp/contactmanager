@@ -85,7 +85,43 @@ app.post('/login',  (req, res) => {
             res.status(401).send('Login Failed');
             return;
         }
+
+        let sql = 'SELECT token FROM users WHERE email = ?'; 
+        db.query(sql, [user.email],
+            async function (err, result) {
+                console.log('Result',result);
+                if (err) {
+                    console.log("Error");
+                }
+                else if (result[0].token != null)
+                {
+                    // if there is already a token, set sessionID to that token
+                    console.log("user already has a token, assigning same token")
+                    return;
+                } 
+                else 
+                {
+                    // Set the null token to the new token in user json
+                    user.token = req.sessionID;
+                    // Insert the session ID into the user in MySQL
+                    let insertSQL = 'UPDATE users SET token = ? WHERE email = ?';
+
+                    db.query(insertSQL, [req.sessionID, user.email], (err) => {
+                        if (err) {
+                            console.log("Error");
+                            return;
+                        } else {
+                            console.log('Inserted token into db');
+                            return;
+                        }
+
+                    });
+                }
+
+            });
         req.login(user, () => {
+            delete user.id;
+            console.log(user);
             res.status(200).send(user);
         });
     })(req,res);
@@ -95,6 +131,11 @@ app.post('/signup', (req, res) => {
     passport.authenticate('local-signup', {}, (err, user) => {
         if (err) {
             res.status(500).send('Internal Server Error');
+            return;
+        }
+        if(!user) {
+            res.status(400).send("Email already taken");
+            return;
         }
         req.login(user, () => {
             res.status(201).send(user);
@@ -102,9 +143,30 @@ app.post('/signup', (req, res) => {
     })(req,res);
 });
 
-app.get('/logout', (req, res) => {
-    req.logout();
-    res.redirect('/login');
+app.get('/logout', isAuth, (req, res) => {
+    console.log("logging out");
+    let insertSQL = 'UPDATE users SET token = ? WHERE token = ?';
+    
+    db.query(insertSQL, ["", req.session.passport.user], (err) => {
+        if (err) {
+            console.log("Error");
+            return;
+        } else {
+            console.log('Inserted token into db');
+            return;
+        }
+
+    });
+    req.logout((err) => {
+        if (err)
+        {
+            res.status(400).send("Logged Out Failed.");
+            return;
+        }
+    });
+    console.log("logging out done");
+
+    return res.status(200).send("Log Out Successful.");
 });
 
 // Route to create contact
@@ -246,11 +308,20 @@ app.patch('/me', isAuth, ({user: {id}, body: {first_name, last_name, email, pass
 
 // Route check auth middleware
 function isAuth(req, res, next) {
+    console.log("session ", req.session);
+    console.log("session token", req.session.passport.user);
     if (req.isAuthenticated()) {
-        return next();
+        // console.log("User", user);
+        if (req.headers.token === req.session.passport.user)
+        {
+            console.log("Equal isAuth")
+            return next();
+        }
+        else
+        {
+            return res.sendStatus(400);
+        }
     }
-    // if not valid user session, go to login page
-    res.redirect('/login');
 }
 
 app.listen(PORT, err => {

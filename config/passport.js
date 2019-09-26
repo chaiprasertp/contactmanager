@@ -25,13 +25,13 @@ module.exports = function (passport) {
 
     // used to serialize the user for the session
     passport.serializeUser(function (user, done) {
-        console.log(user);
-        done(null, user.id);
+        // console.log(user);
+        done(null, user.token);
     });
 
     // used to deserialize the user
     passport.deserializeUser(function (id, done) {
-        db.query("SELECT * FROM users WHERE id = ? ", [id], function (err, rows) {
+        db.query("SELECT * FROM users WHERE token = ? ", [id], function (err, rows) {
             done(err, rows[0]);
         });
     });
@@ -56,7 +56,7 @@ module.exports = function (passport) {
                         return done(err);
                     }
                     if (rows.length) {
-                        console.log("Email already exists");
+                        console.log("Email:",email,"already exists");
                         return done(null, false);
                     } else {
                         // if there is no user with that username
@@ -68,8 +68,8 @@ module.exports = function (passport) {
                             password: bcrypt.hashSync(password, null, null)
                         };
 
-                        let insertQuery = 'INSERT INTO users (email, password, first_name, last_name) VALUES (?,?,?,?)';
-                        db.query(insertQuery, [newUserMysql.email, newUserMysql.password, newUserMysql.first_name, newUserMysql.last_name],
+                        let insertQuery = 'INSERT INTO users (email, password, first_name, last_name, token) VALUES (?,?,?,?,?)';
+                        db.query(insertQuery, [newUserMysql.email, newUserMysql.password, newUserMysql.first_name, newUserMysql.last_name, ""],
                             function (err, result) {
                                 if (err) {
                                     done (err);
@@ -107,6 +107,14 @@ module.exports = function (passport) {
                         console.log('Username not registered');
                         return done(null, false);
                     }
+
+                    // If the user is already logged in then just return row again
+                    // if (rows[0].token != null)
+                    // {
+                    //     console.log(`User ${rows[0].email} already logged in`);
+                    //     delete rows[0].password;
+                    //     return done(null, rows[0]);
+                    // }
 
                     // if the user is found but the password is wrong
                     if (!bcrypt.compareSync(password, rows[0].password)) {
