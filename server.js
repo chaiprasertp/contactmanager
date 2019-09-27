@@ -160,27 +160,27 @@ app.get('/search/:id', isAuth, ({user: {id: user_id}, params: {id}},res) => {
 app.patch('/contact/:id', isAuth, upload.single('avatar'), ({user: {id: user_id}, body: {first_name, middle_name, last_name, phone_number, address, email, favorite, note, group_id} , file, params: {id}}, res) => {
     const arr = [];
     const arr2 = [];
-    if (first_name) {
+    if (first_name || first_name == "") {
         arr.push('first_name = ?');
         arr2.push(first_name);
     }
-    if (middle_name) {
+    if (middle_name || middle_name == "") {
         arr.push('middle_name = ?');
         arr2.push(middle_name);
     }
-    if (last_name) {
+    if (last_name || last_name == "") {
         arr.push('last_name = ?');
         arr2.push(last_name);
     }
-    if (phone_number) {
+    if (phone_number || phone_number == "") {
         arr.push('phone_number = ?');
         arr2.push(phone_number);
     }
-    if (address) {
+    if (address || address == "") {
         arr.push('address = ?');
         arr2.push(address);
     }
-    if (email) {
+    if (email || email == "") {
         arr.push('email = ?');
         arr2.push(email);
     }
@@ -188,7 +188,7 @@ app.patch('/contact/:id', isAuth, upload.single('avatar'), ({user: {id: user_id}
         arr.push('favorite = ?');
         arr2.push(favorite);
     }
-    if (note) {
+    if (note || note =="") {
         arr.push('note = ?');
         arr2.push(note);
     }
