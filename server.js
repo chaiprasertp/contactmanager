@@ -91,6 +91,7 @@ app.post('/login',  (req, res) => {
         }
         req.login(user, () => {
             res.status(200).send(user);
+            console.log("User Logged In!");
         });
     })(req,res);
 });
@@ -111,6 +112,7 @@ app.get('/logout', (req, res) => {
     res.sendStatus(200);
 });
 
+// CONTACT SECTION ------------------------------------------------------------------------------
 // Route to create contact
 app.post('/contact', isAuth, upload.single('avatar'), ({user: {id}, body: {first_name, middle_name, last_name, phone_number, address, email, note}, file}, res) => {
     if (file == undefined) {
@@ -261,6 +263,24 @@ app.patch('/me', isAuth, ({user: {id}, body: {first_name, last_name, email, pass
     console.log(q.sql);
 })
 
+// Group ----------------------------------------------------------------------------------
+// Get the contact from group id
+app.get("/groups", isAuth, ({user: {id}, body:{group_id}}, res) => {
+    console.log("id ", id);
+    console.log("group id", group_id);
+    const sql = 'SELECT * FROM contact WHERE user_id = ? AND group_id = ?'
+    db.query(sql, [id, group_id], (err, result) => {
+        if (err) {
+            res.status(500).send('Internal Server Error.');
+        } else {
+            res.status(200).send(result.map((r) => ({...r, avatar: undefined})));
+        }
+    })
+})
+
+// Edit group id
+app.patch("/groups", isAuth)
+
 // Route check auth middleware
 function isAuth(req, res, next) {
     if (req.isAuthenticated()) {
@@ -269,6 +289,7 @@ function isAuth(req, res, next) {
     // if not valid user session, go to login page
     res.redirect('/login');
 }
+
 
 app.listen(PORT, err => {
     if (err) {
