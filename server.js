@@ -128,7 +128,7 @@ app.post('/contact', isAuth, upload.single('avatar'), ({user: {id}, body: {first
             res.status(500).send('Internal Server Error.');
         } else {
             console.log("Contact successfully created");
-            res.sendStatus(201);
+            res.sendStatus(201).send({id:result.insertId});
         }
     });
 });
