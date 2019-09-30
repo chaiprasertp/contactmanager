@@ -78,7 +78,7 @@ module.exports = function (passport) {
                                 console.log("User created successfully.");
                                 // Returns callback with user info to serialize user to begin session
                                 delete newUserMysql.password;
-                                done(err, newUserMysql);
+                                done(null, newUserMysql);
                             });
                     }
                 });
@@ -115,9 +115,7 @@ module.exports = function (passport) {
                     }
                     // login successful
                     delete rows[0].password;
-                    req.login(rows[0], (err) => {
-                        done(err, rows[0]);
-                    })
+                    done(null, rows[0]);
                 });
                 // db.end();
             })
