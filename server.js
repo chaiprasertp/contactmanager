@@ -27,7 +27,7 @@ const path = require('path');
 app.use('/uploads', express.static('uploads'));
 
 // Set allows port for the server to request from & allow sending credentials
-app.use(cors({ origin: 'http://localhost', credentials: true }));
+app.use(cors({ origin: 'http://167.99.122.161:80', credentials: true }));
 
 const passport = require('passport');
 // pass passport for configuration
