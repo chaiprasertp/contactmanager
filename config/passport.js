@@ -78,9 +78,7 @@ module.exports = function (passport) {
                                 console.log("User created successfully.");
                                 // Returns callback with user info to serialize user to begin session
                                 delete newUserMysql.password;
-                                req.login(newUserMysql, (err) => {
-                                    done(err, newUserMysql);
-                                });
+                                done(err, newUserMysql);
                             });
                     }
                 });
