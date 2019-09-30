@@ -33,7 +33,7 @@ var storage = multer.diskStorage({
 app.use('/uploads', express.static('uploads'));
 
 // Set allows port for the server to request from & allow sending credentials
-app.use(cors({ origin: 'https://contactmanager.best', credentials: true }));
+app.use(cors({ origin: ['https://contactmanager.best','https://localhost:4200'], credentials: true }));
 
 const passport = require('passport');
 // pass passport for configuration
@@ -106,7 +106,6 @@ app.post('/signup', (req, res) => {
     passport.authenticate('local-signup', {}, (err, user) => {
         if (err) {
             res.status(500).send('Internal Server Error');
-            console.log("Err signup: ",err);
         }
         req.login(user, () => {
             res.status(201).send(user);
