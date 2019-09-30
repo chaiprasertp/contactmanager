@@ -9,6 +9,14 @@ const multer = require('multer');
 const crypto = require('crypto');
 const mime = require('mime');
 const cors = require('cors');
+const upload = multer({ storage: storage });
+const fs = require('fs');
+const path = require('path');
+const https = require('https');
+const https_options = {
+    key: fs.readFileSync("/etc/letsencrypt/live/contactmanager.best/privkey.pem"),
+    cert: fs.readFileSync("/etc/letsencrypt/live/contactmanager.best/fullchain.pem")
+};
 
 // Uploading and generating unique names and file extension for profile pic
 var storage = multer.diskStorage({
@@ -21,13 +29,11 @@ var storage = multer.diskStorage({
       });
     }
 });
-const upload = multer({ storage: storage });
-const fs = require('fs');
-const path = require('path');
+
 app.use('/uploads', express.static('uploads'));
 
 // Set allows port for the server to request from & allow sending credentials
-app.use(cors({ origin: 'http://167.99.122.161:80', credentials: true }));
+app.use(cors({ origin: 'https://167.99.122.161:443', credentials: true }));
 
 const passport = require('passport');
 // pass passport for configuration
@@ -298,3 +304,5 @@ app.listen(PORT, err => {
         console.log(`Listening on port ${PORT}`);
     }
 });
+
+https.createServer(https_options, app).listen(8000);
